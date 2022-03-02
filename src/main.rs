@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::ops::Deref;
 use std::sync::Arc;
+use std::time::Duration;
 use axum::extract::{Extension, FromRequest, Query, RequestParts};
 use axum::http::header::HOST;
 use diesel::{insert_into, PgConnection, RunQueryDsl};
@@ -19,6 +20,7 @@ use log::info;
 use dotenv::dotenv;
 use uuid::Uuid;
 use axum::extract::{Path};
+use tokio::time::sleep;
 
 pub type PgPool = Pool<PgConnMgr>;
 pub type PgConnMgr = ConnectionManager<PgConnection>;
@@ -145,6 +147,7 @@ async fn main() {
         .route("/raw_string_post", post(raw_string_post))
         .route("/mix/:id", post(mix))
         .route("/query", get(query))
+        .route("/nested_async", get(nested_async))
         .layer(AddExtensionLayer::new(shared_db_state));
 
     // run our app with hyper
@@ -156,6 +159,18 @@ async fn main() {
         .serve(app.into_make_service())
         .await
         .unwrap();
+}
+
+async fn nested_async() -> String {
+
+    inner_async().await;
+
+    "OUTER".to_string()
+}
+
+async fn inner_async() {
+    sleep(Duration::from_millis(100)).await;
+    println!("INNER");
 }
 
 async fn path(Path(id): Path<String>) -> String {
