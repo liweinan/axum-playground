@@ -21,6 +21,7 @@ use dotenv::dotenv;
 use uuid::Uuid;
 use axum::extract::{Path};
 use tokio::time::sleep;
+use tokio::task;
 
 pub type PgPool = Pool<PgConnMgr>;
 pub type PgConnMgr = ConnectionManager<PgConnection>;
@@ -162,14 +163,13 @@ async fn main() {
 }
 
 async fn nested_async() -> String {
-
-    inner_async().await;
+    task::spawn(async { inner_async().await; });
 
     "OUTER".to_string()
 }
 
 async fn inner_async() {
-    sleep(Duration::from_millis(100)).await;
+    sleep(Duration::from_millis(2000)).await;
     println!("INNER");
 }
 
@@ -215,7 +215,6 @@ async fn my_resp() -> Json<MyResponse<String>> {
 
     Json(resp)
 }
-
 
 
 async fn mix(Path(id): Path<String>,
