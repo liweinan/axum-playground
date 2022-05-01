@@ -168,15 +168,15 @@ async fn nested_async() -> String {
     "OUTER".to_string()
 }
 
-use diesel::sql_types::Integer;
+use diesel::sql_types::BigInt;
 
 #[derive(QueryableByName, Default)]
 struct MyQuery {
-    #[sql_type = "Integer"] result: i32,
+    #[sql_type = "BigInt"] result: i64,
 }
 
 async fn play_with_raw_query(conn: DbConn) -> String {
-    let r = sql_query("select 1+2 as result;").get_result::<MyQuery>(&conn.0).unwrap().result;
+    let r = sql_query("select count(1) as result;").get_result::<MyQuery>(&conn.0).unwrap().result;
     println!("{}", r);
     "OK".to_string()
 }
