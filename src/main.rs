@@ -19,7 +19,6 @@ use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
 use dotenv::dotenv;
 use uuid::Uuid;
 use axum::extract::{Path};
-use diesel::sql_types::Integer;
 use tokio::time::sleep;
 use tokio::task;
 
@@ -170,8 +169,7 @@ async fn nested_async() -> String {
 }
 
 async fn play_with_raw_query(conn: DbConn) -> String {
-    print!("{:?}", sql_query("select 1").load::<Integer>(&conn.0).unwrap());
-    "OK".to_string()
+    sql_query("select count(100);").execute(&conn.0).unwrap().to_string()
 }
 
 async fn inner_async() {
@@ -210,10 +208,6 @@ async fn root() -> &'static str {
 
 async fn get_host(host: HostHeader) -> String {
     host.clone()
-}
-
-async fn sql() -> String {
-    "SQL".to_string()
 }
 
 async fn my_resp() -> Json<MyResponse<String>> {
