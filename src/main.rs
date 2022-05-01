@@ -6,7 +6,7 @@ mod schema;
 use std::collections::HashMap;
 use crate::schema::{users};
 use std::env;
-use axum::{routing::{get, post}, http::StatusCode, response::IntoResponse, Json, Router, async_trait, AddExtensionLayer};
+use axum::{routing::{get, post}, http::StatusCode, response::IntoResponse, Json, Router, async_trait};
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::ops::Deref;
@@ -14,12 +14,12 @@ use std::sync::Arc;
 use std::time::Duration;
 use axum::extract::{Extension, FromRequest, Query, RequestParts};
 use axum::http::header::HOST;
-use diesel::{insert_into, PgConnection, RunQueryDsl};
+use diesel::{insert_into, PgConnection, RunQueryDsl, sql_query};
 use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
-use log::info;
 use dotenv::dotenv;
 use uuid::Uuid;
 use axum::extract::{Path};
+use diesel::sql_types::Integer;
 use tokio::time::sleep;
 use tokio::task;
 
@@ -92,7 +92,7 @@ impl<B> FromRequest<B> for HostHeader where B: Send, {
     type Rejection = (StatusCode, String);
 
     async fn from_request(req: &mut RequestParts<B>) -> Result<Self, Self::Rejection> {
-        let headers = req.headers().unwrap();
+        let headers = req.headers();
         Ok(Self(headers[HOST].to_str().map_err(internal_error)?.to_string()))
     }
 }
@@ -149,7 +149,8 @@ async fn main() {
         .route("/mix/:id", post(mix))
         .route("/query", get(query))
         .route("/nested_async", get(nested_async))
-        .layer(AddExtensionLayer::new(shared_db_state));
+        .route("/play_with_raw_query", get(play_with_raw_query))
+        .layer(Extension(shared_db_state));
 
     // run our app with hyper
     // `axum::Server` is a re-export of `hyper::Server`
@@ -166,6 +167,11 @@ async fn nested_async() -> String {
     task::spawn(async { inner_async().await; });
 
     "OUTER".to_string()
+}
+
+async fn play_with_raw_query(conn: DbConn) -> String {
+    print!("{:?}", sql_query("select 1").load::<Integer>(&conn.0).unwrap());
+    "OK".to_string()
 }
 
 async fn inner_async() {
@@ -204,6 +210,10 @@ async fn root() -> &'static str {
 
 async fn get_host(host: HostHeader) -> String {
     host.clone()
+}
+
+async fn sql() -> String {
+    "SQL".to_string()
 }
 
 async fn my_resp() -> Json<MyResponse<String>> {
@@ -304,3 +314,4 @@ fn all_users(conn: &PgConnection) -> Vec<User> {
     use crate::schema::users::dsl::*;
     users.load::<User>(conn).unwrap()
 }
+
