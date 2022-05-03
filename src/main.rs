@@ -2,6 +2,7 @@
 extern crate diesel;
 
 mod schema;
+mod pagination;
 
 use std::collections::HashMap;
 use crate::schema::{users};
@@ -21,6 +22,8 @@ use uuid::Uuid;
 use axum::extract::{Path};
 use tokio::time::sleep;
 use tokio::task;
+use diesel::sql_types::BigInt;
+
 
 pub type PgPool = Pool<PgConnMgr>;
 pub type PgConnMgr = ConnectionManager<PgConnection>;
@@ -146,6 +149,7 @@ async fn main() {
         .route("/post_with_path/:id", post(post_with_path))
         .route("/raw_string_post", post(raw_string_post))
         .route("/mix/:id", post(mix))
+        .route("/users", get(get_users_by_page))
         .route("/query", get(query))
         .route("/nested_async", get(nested_async))
         .route("/play_with_raw_query", get(play_with_raw_query))
@@ -167,8 +171,6 @@ async fn nested_async() -> String {
 
     "OUTER".to_string()
 }
-
-use diesel::sql_types::BigInt;
 
 #[derive(QueryableByName, Default)]
 struct MyQuery {
@@ -245,6 +247,26 @@ async fn mix(Path(id): Path<String>,
     Json(resp)
 }
 
+async fn get_users_by_page(Query(params): Query<HashMap<String, String>>, conn: DbConn) -> Json<MyResponse<(Vec<User>, i64)>> {
+    let page_params = Params {
+        page: Some(params.get("page").unwrap().parse::<i64>().unwrap()),
+        page_size: Some(params.get("page_size").unwrap().parse::<i64>().unwrap()),
+    };
+
+
+    println!("page: {:?}, page_size: {:?}", &page_params.page, &page_params.page_size);
+
+    let r = paginate_users(&page_params, &conn).unwrap();
+
+    let resp = MyResponse {
+        r: true,
+        d: Some(r),
+        e: None,
+    };
+
+    Json(resp)
+}
+
 
 async fn query(Query(params): Query<HashMap<String, String>>) -> Json<MyResponse<String>> {
     let resp_str = format!("{:?}", params);
@@ -256,6 +278,7 @@ async fn query(Query(params): Query<HashMap<String, String>>) -> Json<MyResponse
 
     Json(resp)
 }
+
 
 fn db_create_user(conn: &PgConnection, in_user: &User) -> User {
     use crate::schema::users::dsl::*;
@@ -287,6 +310,7 @@ async fn create_user(
     (StatusCode::CREATED, Json(out_user))
 }
 
+
 #[derive(
 Debug,
 Serialize,
@@ -316,5 +340,25 @@ struct User {
 fn all_users(conn: &PgConnection) -> Vec<User> {
     use crate::schema::users::dsl::*;
     users.load::<User>(conn).unwrap()
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Params {
+    pub page: Option<i64>,
+    pub page_size: Option<i64>,
+}
+
+
+fn paginate_users(params: &Params, conn: &PgConnection) -> anyhow::Result<(Vec<User>, i64)> {
+    use crate::pagination::LoadPaginated;
+    use crate::diesel::QueryDsl;
+
+    // use crate::schema::users::dsl::*;
+    let mut _query = users::table.into_boxed();
+
+    let (_users, _total_pages) = _query
+        .load_with_pagination(&conn, params.page, params.page_size)?;
+
+    Ok((_users, _total_pages))
 }
 

@@ -31,11 +31,37 @@ Running `target/debug/axum-playground`
 
 ### Test Request
 
+
+#### Create user
+
+
+Command: 
+
 ```bash
 curl --location --request POST 'http://localhost:3000/users' \
 --header 'Content-Type: application/json' \
 --data-raw '{
-    "username":"liweinan"
+    "username":"liweinan1"
 }'
+```
+
+Result:
+
+```json
 {"id":"66fd9d99-1b3f-4be4-b805-161775caafe0","username":"liweinan"}
 ```
+
+#### Get user
+
+Run:
+
+```bash
+$ curl 'http://localhost:3000/users?page=1&page_size=1'
+```
+
+Result:
+
+```json
+{"r":true,"d":[[{"id":"66fd9d99-1b3f-4be4-b805-161775caafe0","username":"liweinan"}],2],"e":null}
+```
+
