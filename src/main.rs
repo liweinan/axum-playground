@@ -247,7 +247,7 @@ async fn mix(Path(id): Path<String>,
     Json(resp)
 }
 
-async fn get_users_by_page(Query(params): Query<HashMap<String, String>>, conn: DbConn) -> Json<MyResponse<(Vec<User>, i64)>> {
+async fn get_users_by_page(Query(params): Query<HashMap<String, String>>, conn: DbConn) -> Json<MyResponse<(Vec<User>, i64, i64)>> {
     let page_params = Params {
         page: Some(params.get("page").unwrap().parse::<i64>().unwrap()),
         page_size: Some(params.get("page_size").unwrap().parse::<i64>().unwrap()),
@@ -349,16 +349,16 @@ pub struct Params {
 }
 
 
-fn paginate_users(params: &Params, conn: &PgConnection) -> anyhow::Result<(Vec<User>, i64)> {
+fn paginate_users(params: &Params, conn: &PgConnection) -> anyhow::Result<(Vec<User>, i64, i64)> {
     use crate::pagination::LoadPaginated;
     use crate::diesel::QueryDsl;
 
     // use crate::schema::users::dsl::*;
     let mut _query = users::table.into_boxed();
 
-    let (_users, _total_pages) = _query
+    let (_users, _total_pages, _total) = _query
         .load_with_pagination(&conn, params.page, params.page_size)?;
 
-    Ok((_users, _total_pages))
+    Ok((_users, _total_pages, _total))
 }
 
