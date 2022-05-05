@@ -20,7 +20,7 @@ use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
 use dotenv::dotenv;
 use uuid::Uuid;
 use axum::extract::{Path};
-use chrono::{Local, NaiveDateTime, NaiveDate};
+use chrono::{Local, NaiveDateTime};
 use tokio::time::sleep;
 use tokio::task;
 use diesel::sql_types::BigInt;
@@ -248,10 +248,15 @@ async fn mix(Path(id): Path<String>,
     Json(resp)
 }
 
+// https://stackoverflow.com/questions/61179070/rust-chrono-parse-date-string-parseerrornotenough-and-parseerrortooshort
 async fn get_users_by_page(Query(params): Query<HashMap<String, String>>, conn: DbConn) -> Json<MyResponse<(Vec<User>, i64, i64)>> {
-    let page_params = Params {
+    let start_date = params.get("start_from").unwrap().as_str();
+    println!("start_date -> {}", start_date);
+    let page_params = PageParams {
         page: Some(params.get("page").unwrap().parse::<i64>().unwrap()),
         page_size: Some(params.get("page_size").unwrap().parse::<i64>().unwrap()),
+
+        start_from: Some(NaiveDateTime::parse_from_str(start_date, "%Y-%m-%d %H:%M:%S").unwrap()),
     };
 
 
@@ -348,13 +353,14 @@ fn all_users(conn: &PgConnection) -> Vec<User> {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct Params {
+pub struct PageParams {
     pub page: Option<i64>,
     pub page_size: Option<i64>,
+    pub start_from: Option<NaiveDateTime>,
 }
 
 
-fn paginate_users(params: &Params, conn: &PgConnection) -> anyhow::Result<(Vec<User>, i64, i64)> {
+fn paginate_users(params: &PageParams, conn: &PgConnection) -> anyhow::Result<(Vec<User>, i64, i64)> {
     use crate::pagination::LoadPaginated;
     use crate::diesel::QueryDsl;
     use diesel::prelude::*;
@@ -368,7 +374,7 @@ fn paginate_users(params: &Params, conn: &PgConnection) -> anyhow::Result<(Vec<U
 
     let (_users, _total_pages, _total) = _query
         .order(users::created_at.desc())
-        .filter(users::created_at.ge(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11)))
+        .filter(users::created_at.ge(params.start_from.unwrap()))
         .load_with_pagination(&conn, params.page, params.page_size)?;
 
     Ok((_users, _total_pages, _total))
