@@ -20,6 +20,7 @@ use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
 use dotenv::dotenv;
 use uuid::Uuid;
 use axum::extract::{Path};
+use chrono::{Local, NaiveDateTime, NaiveDate};
 use tokio::time::sleep;
 use tokio::task;
 use diesel::sql_types::BigInt;
@@ -298,6 +299,7 @@ async fn create_user(
     let in_user = User {
         id: uuid(),
         username: payload.username.unwrap(),
+        created_at: Some(Local::now().naive_local()),
     };
 
     let created_user = db_create_user(&conn, &in_user);
@@ -305,6 +307,7 @@ async fn create_user(
     let out_user = ReqUser {
         id: Some(created_user.id),
         username: Some(created_user.username),
+        created_at: Some(created_user.created_at.unwrap().to_string()),
     };
 
     (StatusCode::CREATED, Json(out_user))
@@ -318,6 +321,7 @@ Deserialize)]
 struct ReqUser {
     id: Option<String>,
     username: Option<String>,
+    created_at: Option<String>,
 }
 
 #[derive(
@@ -335,6 +339,7 @@ AsChangeset,
 struct User {
     id: String,
     username: String,
+    created_at: Option<NaiveDateTime>,
 }
 
 fn all_users(conn: &PgConnection) -> Vec<User> {
@@ -352,11 +357,18 @@ pub struct Params {
 fn paginate_users(params: &Params, conn: &PgConnection) -> anyhow::Result<(Vec<User>, i64, i64)> {
     use crate::pagination::LoadPaginated;
     use crate::diesel::QueryDsl;
+    use diesel::prelude::*;
 
-    // use crate::schema::users::dsl::*;
     let mut _query = users::table.into_boxed();
 
+    // let (_users, _total_pages, _total) = (_query
+    //     .filter(users::created_at.ge(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11)))
+    //     .order(users::created_at.desc())
+    //     .load(conn)?, 0, 0);
+
     let (_users, _total_pages, _total) = _query
+        .order(users::created_at.desc())
+        .filter(users::created_at.ge(NaiveDate::from_ymd(2016, 7, 8).and_hms(9, 10, 11)))
         .load_with_pagination(&conn, params.page, params.page_size)?;
 
     Ok((_users, _total_pages, _total))
