@@ -154,6 +154,7 @@ async fn main() {
         .route("/query", get(query))
         .route("/nested_async", get(nested_async))
         .route("/play_with_raw_query", get(play_with_raw_query))
+        .route("/current_time", get(get_current_time))
         .layer(Extension(shared_db_state));
 
     // run our app with hyper
@@ -216,6 +217,11 @@ async fn raw_string_post(data: String) -> String {
 // basic handler that responds with a static string
 async fn root() -> &'static str {
     "Hello, World!"
+}
+
+
+async fn get_current_time() -> Json<NaiveDateTime> {
+    Json(chrono::offset::Local::now().naive_local())
 }
 
 async fn get_host(host: HostHeader) -> String {
@@ -294,6 +300,7 @@ fn db_create_user(conn: &PgConnection, in_user: &User) -> User {
         .get_result::<User>(conn)
         .unwrap()
 }
+
 
 async fn create_user(
     conn: DbConn,
