@@ -17,6 +17,7 @@ use axum::extract::{Extension, FromRequest, Query, RequestParts};
 use axum::http::header::HOST;
 use diesel::{insert_into, PgConnection, RunQueryDsl, sql_query};
 use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
+use diesel::sql_types::Jsonb;
 use dotenv::dotenv;
 use uuid::Uuid;
 use axum::extract::{Path};
@@ -312,6 +313,7 @@ async fn create_user(
         id: uuid(),
         username: payload.username.unwrap(),
         created_at: Some(Local::now().naive_local()),
+        meta: None,
     };
 
     let created_user = db_create_user(&conn, &in_user);
@@ -320,6 +322,7 @@ async fn create_user(
         id: Some(created_user.id),
         username: Some(created_user.username),
         created_at: Some(created_user.created_at.unwrap().to_string()),
+        meta: None,
     };
 
     (StatusCode::CREATED, Json(out_user))
@@ -334,6 +337,7 @@ struct ReqUser {
     id: Option<String>,
     username: Option<String>,
     created_at: Option<String>,
+    meta: Option<Meta>,
 }
 
 #[derive(
@@ -352,7 +356,50 @@ struct User {
     id: String,
     username: String,
     created_at: Option<NaiveDateTime>,
+    meta: Option<Meta>,
 }
+
+#[derive(AsExpression, FromSqlRow, Debug, Default, Serialize, Deserialize, PartialEq, Clone)]
+#[sql_type = "Jsonb"]
+pub struct Meta {
+    pub meta: Option<String>,
+}
+
+
+impl_jsonb_boilerplate!(Meta);
+
+#[macro_export]
+macro_rules! impl_jsonb_boilerplate {
+    ($name: ident) => {
+        impl ::diesel::deserialize::FromSql<::diesel::sql_types::Jsonb, ::diesel::pg::Pg>
+            for $name
+        {
+            fn from_sql(bytes: Option<&[u8]>) -> diesel::deserialize::Result<Self> {
+                let value = <::serde_json::Value as ::diesel::deserialize::FromSql<
+                    ::diesel::sql_types::Jsonb,
+                    ::diesel::pg::Pg,
+                >>::from_sql(bytes)?;
+                Ok(::serde_json::from_value(value)?)
+            }
+        }
+
+        impl ::diesel::serialize::ToSql<::diesel::sql_types::Jsonb, ::diesel::pg::Pg> for $name {
+            fn to_sql<W: ::std::io::Write>(
+                &self,
+                out: &mut ::diesel::serialize::Output<W, ::diesel::pg::Pg>,
+            ) -> ::diesel::serialize::Result {
+                let value = ::serde_json::to_value(self)?;
+                <::serde_json::Value as ::diesel::serialize::ToSql<
+                    ::diesel::sql_types::Jsonb,
+                    ::diesel::pg::Pg,
+                >>::to_sql(&value, out)
+            }
+        }
+    };
+}
+
+
+
 
 fn all_users(conn: &PgConnection) -> Vec<User> {
     use crate::schema::users::dsl::*;
