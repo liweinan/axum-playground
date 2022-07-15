@@ -3,5 +3,6 @@ table! {
         id -> Varchar,
         username -> Varchar,
         created_at -> Nullable<Timestamp>,
+        meta -> Nullable<Jsonb>,
     }
 }
