@@ -307,13 +307,22 @@ async fn create_user(
     conn: DbConn,
     Json(payload): Json<ReqUser>,
 ) -> impl IntoResponse {
+    let mut data: HashMap<String, String> = HashMap::new();
+
+    data.insert("foo".to_string(), "1".to_string());
+    data.insert("bar".to_string(), "1".to_string());
+
+    let meta = Meta {
+        meta: None,
+        data: Some(data),
+    };
 
     // insert your application logic here
     let in_user = User {
         id: uuid(),
         username: payload.username.unwrap(),
         created_at: Some(Local::now().naive_local()),
-        meta: None,
+        meta: Some(meta),
     };
 
     let created_user = db_create_user(&conn, &in_user);
@@ -322,7 +331,7 @@ async fn create_user(
         id: Some(created_user.id),
         username: Some(created_user.username),
         created_at: Some(created_user.created_at.unwrap().to_string()),
-        meta: None,
+        meta: created_user.meta.clone(),
     };
 
     (StatusCode::CREATED, Json(out_user))
@@ -363,6 +372,7 @@ struct User {
 #[sql_type = "Jsonb"]
 pub struct Meta {
     pub meta: Option<String>,
+    pub data: Option<HashMap<String, String>>,
 }
 
 
