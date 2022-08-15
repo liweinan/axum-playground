@@ -296,12 +296,12 @@ async fn query(Query(params): Query<HashMap<String, String>>) -> Json<MyResponse
 }
 
 
-fn db_create_typed_user<T: Debug + Serialize + DeserializeOwned>(conn: &PgConnection, in_user: &TypedUser<T>) -> User {
+fn db_create_typed_user<T: Debug + Serialize + DeserializeOwned>(conn: &PgConnection, in_user: &TypedUser<T>) -> TypedUser<String> {
     use crate::schema::users::dsl::*;
 
     insert_into(users)
         .values(in_user.clone())
-        .get_result::<User>(conn)
+        .get_result::<TypedUser<String>>(conn)
         .unwrap()
 }
 
@@ -317,7 +317,7 @@ fn db_create_user(conn: &PgConnection, in_user: &User) -> User {
 
 async fn create_with_typed_user(
     conn: DbConn,
-    Json(payload): Json<ReqUserWithTypedMeta<String>>) -> impl IntoResponse {
+    Json(payload): Json<ReqTypedUser<String>>) -> impl IntoResponse {
     let mut data: HashMap<String, String> = HashMap::new();
 
     data.insert("foo".to_string(), "1".to_string());
@@ -338,7 +338,7 @@ async fn create_with_typed_user(
 
     let created_user = db_create_typed_user(&conn, &in_user);
 
-    let out_user = ReqUser {
+    let out_user = ReqTypedUser {
         id: Some(created_user.id),
         username: Some(created_user.username),
         created_at: Some(created_user.created_at.unwrap().to_string()),
@@ -389,7 +389,7 @@ Debug,
 Serialize,
 Deserialize)]
 #[serde(bound = "")]
-struct ReqUserWithTypedMeta<T: Debug + DeserializeOwned + Serialize> {
+struct ReqTypedUser<T: Debug + DeserializeOwned + Serialize> {
     id: Option<String>,
     username: Option<String>,
     created_at: Option<String>,
