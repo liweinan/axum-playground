@@ -45,6 +45,15 @@ curl --location --request POST 'http://localhost:3000/users' \
 }'
 ```
 
+Create Typed User:
+```bash
+curl --location --request POST 'http://localhost:3000/typed_users' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "username":"liweinan42"
+}'
+```
+
 Result:
 
 ```json

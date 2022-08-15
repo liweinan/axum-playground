@@ -7,6 +7,7 @@ mod pagination;
 use std::collections::HashMap;
 use crate::schema::{users};
 use std::env;
+use std::fmt::Debug;
 use axum::{routing::{get, post}, http::StatusCode, response::IntoResponse, Json, Router, async_trait};
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
@@ -25,6 +26,7 @@ use chrono::{Local, NaiveDateTime};
 use tokio::time::sleep;
 use tokio::task;
 use diesel::sql_types::BigInt;
+use serde::de::DeserializeOwned;
 
 
 pub type PgPool = Pool<PgConnMgr>;
@@ -144,6 +146,7 @@ async fn main() {
         .route("/", get(root))
         // `POST /users` goes to `create_user`
         .route("/users", post(create_user))
+        .route("/typed_users", post(create_with_typed_user))
         .route("/get_host", get(get_host))
         .route("/my_resp", get(my_resp))
         .route("/path/:id", get(path))
@@ -293,6 +296,16 @@ async fn query(Query(params): Query<HashMap<String, String>>) -> Json<MyResponse
 }
 
 
+fn db_create_typed_user<T: Debug + Serialize + DeserializeOwned, W: Debug + Serialize + DeserializeOwned>(conn: &PgConnection, in_user: &TypedUser<T>) -> TypedUser<W> {
+    use crate::schema::users::dsl::*;
+
+    insert_into(users)
+        .values(in_user.clone())
+        .get_result::<TypedUser<W>>(conn)
+        .unwrap()
+}
+
+
 fn db_create_user(conn: &PgConnection, in_user: &User) -> User {
     use crate::schema::users::dsl::*;
 
@@ -300,6 +313,39 @@ fn db_create_user(conn: &PgConnection, in_user: &User) -> User {
         .values(in_user.clone())
         .get_result::<User>(conn)
         .unwrap()
+}
+
+async fn create_with_typed_user(
+    conn: DbConn,
+    Json(payload): Json<ReqTypedUser<String>>) -> impl IntoResponse {
+    let mut data: HashMap<String, String> = HashMap::new();
+
+    data.insert("foo".to_string(), "1".to_string());
+    data.insert("bar".to_string(), "1".to_string());
+
+    let meta : TypedMeta<String> = TypedMeta {
+        meta: None,
+        data: Some(data),
+    };
+
+    // insert your application logic here
+    let in_user = TypedUser {
+        id: uuid(),
+        username: payload.username.unwrap(),
+        created_at: Some(Local::now().naive_local()),
+        meta: Some(meta),
+    };
+
+    let created_user = db_create_typed_user::<String, String>(&conn, &in_user);
+
+    let out_user = ReqTypedUser {
+        id: Some(created_user.id),
+        username: Some(created_user.username),
+        created_at: Some(created_user.created_at.unwrap().to_string()),
+        meta: created_user.meta.clone(),
+    };
+
+    (StatusCode::CREATED, Json(out_user))
 }
 
 
@@ -342,6 +388,77 @@ async fn create_user(
 Debug,
 Serialize,
 Deserialize)]
+#[serde(bound = "")]
+struct ReqTypedUser<T: Debug + DeserializeOwned + Serialize> {
+    id: Option<String>,
+    username: Option<String>,
+    created_at: Option<String>,
+    meta: Option<TypedMeta<T>>,
+}
+
+
+#[derive(AsExpression, FromSqlRow, Debug, Default, Serialize, Deserialize, PartialEq, Clone)]
+#[sql_type = "Jsonb"]
+#[serde(bound = "")]
+pub struct TypedMeta<T: Debug + DeserializeOwned + Serialize> {
+    pub meta: Option<T>,
+    pub data: Option<HashMap<String, String>>,
+}
+
+
+#[derive(
+Identifiable,
+PartialEq,
+Serialize,
+Deserialize,
+Queryable,
+Insertable,
+Debug,
+Clone,
+AsChangeset,
+)]
+#[table_name = "users"]
+#[serde(bound = "")]
+struct TypedUser<T: Debug + DeserializeOwned + Serialize> {
+    id: String,
+    username: String,
+    created_at: Option<NaiveDateTime>,
+    meta: Option<TypedMeta<T>>,
+}
+
+
+// 因为泛型的原因，这里不能用这个macro了
+// impl_jsonb_boilerplate!(MultiVals);
+impl<T: Debug + Serialize + DeserializeOwned> diesel::deserialize::FromSql<diesel::sql_types::Jsonb, diesel::pg::Pg>
+for TypedMeta<T>
+{
+    fn from_sql(bytes: Option<&[u8]>) -> diesel::deserialize::Result<Self> {
+        let value = <serde_json::Value as diesel::deserialize::FromSql<
+            diesel::sql_types::Jsonb,
+            diesel::pg::Pg,
+        >>::from_sql(bytes)?;
+        Ok(serde_json::from_value(value)?)
+    }
+}
+
+impl<T: Debug + Serialize + DeserializeOwned> diesel::serialize::ToSql<diesel::sql_types::Jsonb, diesel::pg::Pg> for TypedMeta<T> {
+    fn to_sql<W: std::io::Write>(
+        &self,
+        out: &mut diesel::serialize::Output<W, diesel::pg::Pg>,
+    ) -> diesel::serialize::Result {
+        let value = serde_json::to_value(self)?;
+        <serde_json::Value as diesel::serialize::ToSql<
+            diesel::sql_types::Jsonb,
+            diesel::pg::Pg,
+        >>::to_sql(&value, out)
+    }
+}
+
+
+#[derive(
+Debug,
+Serialize,
+Deserialize)]
 struct ReqUser {
     id: Option<String>,
     username: Option<String>,
@@ -367,6 +484,7 @@ struct User {
     created_at: Option<NaiveDateTime>,
     meta: Option<Meta>,
 }
+
 
 #[derive(AsExpression, FromSqlRow, Debug, Default, Serialize, Deserialize, PartialEq, Clone)]
 #[sql_type = "Jsonb"]
