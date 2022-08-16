@@ -6,17 +6,18 @@ mod pagination;
 
 use std::collections::HashMap;
 use crate::schema::{users};
-use std::env;
-use std::fmt::Debug;
+use std::{env, fmt};
+use std::fmt::{Debug, Formatter};
 use axum::{routing::{get, post}, http::StatusCode, response::IntoResponse, Json, Router, async_trait};
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::ops::Deref;
 use std::sync::Arc;
 use std::time::Duration;
+use anyhow::anyhow;
 use axum::extract::{Extension, FromRequest, Query, RequestParts};
 use axum::http::header::HOST;
-use diesel::{insert_into, PgConnection, RunQueryDsl, sql_query};
+use diesel::{insert_into, PgConnection, QueryDsl, RunQueryDsl, sql_query};
 use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
 use diesel::sql_types::Jsonb;
 use dotenv::dotenv;
@@ -26,6 +27,7 @@ use chrono::{Local, NaiveDateTime};
 use tokio::time::sleep;
 use tokio::task;
 use diesel::sql_types::BigInt;
+use log::error;
 use serde::de::DeserializeOwned;
 
 
@@ -315,6 +317,37 @@ fn db_create_user(conn: &PgConnection, in_user: &User) -> User {
         .unwrap()
 }
 
+
+fn db_delete_typed_user<T: Debug + Serialize + DeserializeOwned>(conn: &PgConnection, id_user: &String) -> anyhow::Result<TypedUser<T>> {
+    let to_delete = find_typed_user_by_id::<T>(id_user, conn)?;
+
+    use crate::schema::users::dsl::*;
+    match diesel::delete(users.find(id_user)).execute(conn) {
+        Ok(_) => Ok(to_delete),
+        Err(e) => Err(anyhow!(HtyErr {
+                code: HtyErrCode::DbErr,
+                reason: Some(e.to_string()),
+            })),
+    }
+}
+
+
+pub fn find_typed_user_by_id<T: Debug + Serialize + DeserializeOwned>(id_user: &String, conn: &PgConnection) -> anyhow::Result<TypedUser<T>> {
+    // use crate::schema::users::dsl::*;
+    use crate::schema::users::dsl::*;
+    match users.find(id_user).get_result::<TypedUser<T>>(conn)
+    {
+        Ok(user) => Ok(user),
+        Err(e) => Err({
+            error!("find_by_id / err -> {:?}", e);
+            anyhow!(HtyErr {
+                    code: HtyErrCode::DbErr,
+                    reason: Some(e.to_string()),
+                })
+        }),
+    }
+}
+
 async fn create_with_typed_user(
     conn: DbConn,
     Json(payload): Json<ReqTypedUser<String>>) -> impl IntoResponse {
@@ -384,6 +417,57 @@ async fn create_user(
 }
 
 
+#[derive(Deserialize, Serialize, Clone, thiserror::Error)]
+pub struct HtyErr {
+    pub code: HtyErrCode,
+    pub reason: Option<String>,
+}
+
+impl fmt::Display for HtyErr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(self, f)
+    }
+}
+
+impl fmt::Debug for HtyErr {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{} -> {}", self.code, self.reason.clone().get_or_insert("".to_string()))
+    }
+}
+
+impl PartialEq for HtyErr {
+    fn eq(&self, other: &Self) -> bool {
+        self.code == other.code && self.reason == other.reason
+    }
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug)]
+pub enum HtyErrCode {
+    DbErr,
+    InternalErr,
+    CommonError,
+    WebErr,
+    JwtErr,
+    WxErr,
+    NullErr,
+    NotFoundErr,
+    NotEqualErr,
+    AuthenticationFailed,
+    ConflictErr,
+}
+
+impl fmt::Display for HtyErrCode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(self, f)
+    }
+}
+
+impl PartialEq for HtyErrCode {
+    fn eq(&self, other: &Self) -> bool {
+        self.to_string() == other.to_string()
+    }
+}
+
 #[derive(
 Debug,
 Serialize,
@@ -419,7 +503,7 @@ AsChangeset,
 )]
 #[table_name = "users"]
 #[serde(bound = "")]
-struct TypedUser<T: Debug + DeserializeOwned + Serialize> {
+pub struct TypedUser<T: Debug + DeserializeOwned + Serialize> {
     id: String,
     username: String,
     created_at: Option<NaiveDateTime>,
@@ -544,7 +628,6 @@ pub struct PageParams {
 
 fn paginate_users(params: &PageParams, conn: &PgConnection) -> anyhow::Result<(Vec<User>, i64, i64)> {
     use crate::pagination::LoadPaginated;
-    use crate::diesel::QueryDsl;
     use diesel::prelude::*;
 
     let mut _query = users::table.into_boxed();
