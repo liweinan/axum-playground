@@ -365,7 +365,7 @@ async fn create_with_typed_user(
         meta: Some(meta),
     };
 
-    let created_user = db_create_typed_user::<String, i32>(&conn, &in_user);
+    let created_user = db_create_typed_user::<String, String>(&conn, &in_user);
 
     let out_user = ReqTypedUser {
         id: Some(created_user.id),
