@@ -338,7 +338,7 @@ pub fn find_typed_user_by_id<T: Debug + Serialize + DeserializeOwned>(id_user: &
 
 
 async fn delete_user_by_id(conn: DbConn, Path(id): Path<String>) -> impl IntoResponse {
-    let to_delete_user = TypedUser::<String>::db_delete_typed_user(&conn, &id).unwrap();
+    let to_delete_user = TypedUser::<String>::db_delete_typed_user::<String>(&conn, &id).unwrap();
 
     (StatusCode::OK, Json(to_delete_user))
 }
@@ -365,7 +365,7 @@ async fn create_with_typed_user(
         meta: Some(meta),
     };
 
-    let created_user = db_create_typed_user::<String, String>(&conn, &in_user);
+    let created_user = db_create_typed_user::<String, i32>(&conn, &in_user);
 
     let out_user = ReqTypedUser {
         id: Some(created_user.id),
@@ -508,8 +508,8 @@ pub struct TypedUser<T: Debug + DeserializeOwned + Serialize> {
 
 
 impl<T: Debug + DeserializeOwned + Serialize> TypedUser<T> {
-    pub fn db_delete_typed_user(conn: &PgConnection, id_user: &String) -> anyhow::Result<TypedUser<T>> {
-        let to_delete = find_typed_user_by_id::<T>(id_user, conn)?;
+    pub fn db_delete_typed_user<U: Debug + DeserializeOwned + Serialize>(conn: &PgConnection, id_user: &String) -> anyhow::Result<TypedUser<U>> {
+        let to_delete = find_typed_user_by_id::<U>(id_user, conn)?;
 
         use crate::schema::users::dsl::*;
         match diesel::delete(users.find(id_user)).execute(conn) {
