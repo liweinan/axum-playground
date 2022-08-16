@@ -206,7 +206,6 @@ async fn path(Path(id): Path<String>) -> String {
 }
 
 
-
 async fn path2(Path(path_id): Path<String>) -> String {
     if path_id.is_empty() {
         "<NONE>".to_string()
@@ -321,20 +320,6 @@ fn db_create_user(conn: &PgConnection, in_user: &User) -> User {
 }
 
 
-fn db_delete_typed_user<T: Debug + Serialize + DeserializeOwned>(conn: &PgConnection, id_user: &String) -> anyhow::Result<TypedUser<T>> {
-    let to_delete = find_typed_user_by_id::<T>(id_user, conn)?;
-
-    use crate::schema::users::dsl::*;
-    match diesel::delete(users.find(id_user)).execute(conn) {
-        Ok(_) => Ok(to_delete),
-        Err(e) => Err(anyhow!(HtyErr {
-                code: HtyErrCode::DbErr,
-                reason: Some(e.to_string()),
-            })),
-    }
-}
-
-
 pub fn find_typed_user_by_id<T: Debug + Serialize + DeserializeOwned>(id_user: &String, conn: &PgConnection) -> anyhow::Result<TypedUser<T>> {
     // use crate::schema::users::dsl::*;
     use crate::schema::users::dsl::*;
@@ -352,13 +337,10 @@ pub fn find_typed_user_by_id<T: Debug + Serialize + DeserializeOwned>(id_user: &
 }
 
 
-
 async fn delete_user_by_id(conn: DbConn, Path(id): Path<String>) -> impl IntoResponse {
-    let to_delete_user = db_delete_typed_user::<String>(&conn, &id).unwrap();
-
+    let to_delete_user = TypedUser::<String>::db_delete_typed_user(&conn, &id).unwrap();
 
     (StatusCode::OK, Json(to_delete_user))
-
 }
 
 
@@ -370,7 +352,7 @@ async fn create_with_typed_user(
     data.insert("foo".to_string(), "1".to_string());
     data.insert("bar".to_string(), "1".to_string());
 
-    let meta : TypedMeta<String> = TypedMeta {
+    let meta: TypedMeta<String> = TypedMeta {
         meta: None,
         data: Some(data),
     };
@@ -524,6 +506,21 @@ pub struct TypedUser<T: Debug + DeserializeOwned + Serialize> {
     meta: Option<TypedMeta<T>>,
 }
 
+
+impl<T: Debug + DeserializeOwned + Serialize> TypedUser<T> {
+    pub fn db_delete_typed_user(conn: &PgConnection, id_user: &String) -> anyhow::Result<TypedUser<T>> {
+        let to_delete = find_typed_user_by_id::<T>(id_user, conn)?;
+
+        use crate::schema::users::dsl::*;
+        match diesel::delete(users.find(id_user)).execute(conn) {
+            Ok(_) => Ok(to_delete),
+            Err(e) => Err(anyhow!(HtyErr {
+    code: HtyErrCode::DbErr,
+    reason: Some(e.to_string()),
+    })),
+        }
+    }
+}
 
 // 因为泛型的原因，这里不能用这个macro了
 // impl_jsonb_boilerplate!(MultiVals);

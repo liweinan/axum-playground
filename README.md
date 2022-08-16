@@ -60,6 +60,13 @@ Result:
 {"id":"66fd9d99-1b3f-4be4-b805-161775caafe0","username":"liweinan"}
 ```
 
+### Delete User
+
+```bash
+curl http://localhost:3000/delete_user_by_id/b61896bc-a449-402e-ba9c-273f0eea052d                                                                                                                                                                                                                                            01:55:44
+{"id":"b61896bc-a449-402e-ba9c-273f0eea052d","username":"liweinan999","created_at":"2022-08-17T01:55:44.700301","meta":{"meta":null,"data":{"foo":"1","bar":"1"}}}
+```
+
 #### Get user
 
 Run:
