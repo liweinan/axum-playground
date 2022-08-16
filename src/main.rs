@@ -149,6 +149,7 @@ async fn main() {
         // `POST /users` goes to `create_user`
         .route("/users", post(create_user))
         .route("/typed_users", post(create_with_typed_user))
+        .route("/delete_user_by_id/:id", get(delete_user_by_id))
         .route("/get_host", get(get_host))
         .route("/my_resp", get(my_resp))
         .route("/path/:id", get(path))
@@ -203,6 +204,8 @@ async fn path(Path(id): Path<String>) -> String {
         id
     }
 }
+
+
 
 async fn path2(Path(path_id): Path<String>) -> String {
     if path_id.is_empty() {
@@ -347,6 +350,17 @@ pub fn find_typed_user_by_id<T: Debug + Serialize + DeserializeOwned>(id_user: &
         }),
     }
 }
+
+
+
+async fn delete_user_by_id(conn: DbConn, Path(id): Path<String>) -> impl IntoResponse {
+    let to_delete_user = db_delete_typed_user::<String>(&conn, &id).unwrap();
+
+
+    (StatusCode::OK, Json(to_delete_user))
+
+}
+
 
 async fn create_with_typed_user(
     conn: DbConn,
