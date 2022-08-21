@@ -149,6 +149,7 @@ async fn main() {
         // `POST /users` goes to `create_user`
         .route("/users", post(create_user))
         .route("/typed_users", post(create_with_typed_user))
+        .route("/find_user_by_id/:id", get(find_user_by_id))
         .route("/delete_user_by_id/:id", get(delete_user_by_id))
         .route("/get_host", get(get_host))
         .route("/my_resp", get(my_resp))
@@ -262,6 +263,17 @@ async fn mix(Path(id): Path<String>,
     Json(resp)
 }
 
+async fn find_user_by_id(conn: DbConn, Path(id): Path<String>) -> Json<MyResponse<TypedUser<ReqWxMessageData4KeywordTemplate>>> {
+    let typed_user = TypedUser::find_typed_user_by_id(&id, &conn).unwrap();
+    let resp = MyResponse {
+        r: true,
+        d: Some(typed_user),
+        e: None,
+    };
+
+    Json(resp)
+}
+
 // https://stackoverflow.com/questions/61179070/rust-chrono-parse-date-string-parseerrornotenough-and-parseerrortooshort
 async fn get_users_by_page(Query(params): Query<HashMap<String, String>>, conn: DbConn) -> Json<MyResponse<(Vec<User>, i64, i64)>> {
     let start_date = params.get("start_from").unwrap().as_str();
@@ -310,30 +322,13 @@ fn db_create_typed_user<T: Debug + Serialize + DeserializeOwned, W: Debug + Seri
 }
 
 
-fn db_create_user(conn: &PgConnection, in_user: &User) -> User {
+fn _db_create_user(conn: &PgConnection, in_user: &User) -> User {
     use crate::schema::users::dsl::*;
 
     insert_into(users)
         .values(in_user.clone())
         .get_result::<User>(conn)
         .unwrap()
-}
-
-
-pub fn find_typed_user_by_id<T: Debug + Serialize + DeserializeOwned>(id_user: &String, conn: &PgConnection) -> anyhow::Result<TypedUser<T>> {
-    // use crate::schema::users::dsl::*;
-    use crate::schema::users::dsl::*;
-    match users.find(id_user).get_result::<TypedUser<T>>(conn)
-    {
-        Ok(user) => Ok(user),
-        Err(e) => Err({
-            error!("find_by_id / err -> {:?}", e);
-            anyhow!(HtyErr {
-                    code: HtyErrCode::DbErr,
-                    reason: Some(e.to_string()),
-                })
-        }),
-    }
 }
 
 
@@ -387,22 +382,26 @@ async fn create_user(
     data.insert("foo".to_string(), "1".to_string());
     data.insert("bar".to_string(), "1".to_string());
 
-    let meta = Meta {
-        meta: None,
+    let meta = TypedMeta {
+        meta: Some(ReqWxMessageData4KeywordTemplate {
+            first: ReqWxMessageDataValue { value: "first".to_string() },
+            remark: ReqWxMessageDataValue { value: "remark".to_string() },
+        }),
         data: Some(data),
     };
 
+
     // insert your application logic here
-    let in_user = User {
+    let in_user = TypedUser {
         id: uuid(),
         username: payload.username.unwrap(),
         created_at: Some(Local::now().naive_local()),
         meta: Some(meta),
     };
 
-    let created_user = db_create_user(&conn, &in_user);
+    let created_user = db_create_typed_user::<ReqWxMessageData4KeywordTemplate, ReqWxMessageData4KeywordTemplate>(&conn, &in_user);
 
-    let out_user = ReqUser {
+    let out_user = ReqTypedUser {
         id: Some(created_user.id),
         username: Some(created_user.username),
         created_at: Some(created_user.created_at.unwrap().to_string()),
@@ -507,9 +506,21 @@ pub struct TypedUser<T: Debug + DeserializeOwned + Serialize> {
 }
 
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ReqWxMessageData4KeywordTemplate {
+    pub first: ReqWxMessageDataValue,
+    pub remark: ReqWxMessageDataValue,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ReqWxMessageDataValue {
+    pub value: String,
+}
+
+
 impl<T: Debug + DeserializeOwned + Serialize> TypedUser<T> {
     pub fn db_delete_typed_user<U: Debug + DeserializeOwned + Serialize>(conn: &PgConnection, id_user: &String) -> anyhow::Result<TypedUser<U>> {
-        let to_delete = find_typed_user_by_id::<U>(id_user, conn)?;
+        let to_delete = TypedUser::find_typed_user_by_id(id_user, conn)?;
 
         use crate::schema::users::dsl::*;
         match diesel::delete(users.find(id_user)).execute(conn) {
@@ -518,6 +529,22 @@ impl<T: Debug + DeserializeOwned + Serialize> TypedUser<T> {
     code: HtyErrCode::DbErr,
     reason: Some(e.to_string()),
     })),
+        }
+    }
+
+    pub fn find_typed_user_by_id(id_user: &String, conn: &PgConnection) -> anyhow::Result<TypedUser<T>> {
+        // use crate::schema::users::dsl::*;
+        use crate::schema::users::dsl::*;
+        match users.find(id_user).first::<TypedUser<T>>(conn)
+        {
+            Ok(user) => Ok(user),
+            Err(e) => Err({
+                error!("find_by_id / err -> {:?}", e);
+                anyhow!(HtyErr {
+                    code: HtyErrCode::DbErr,
+                    reason: Some(e.to_string()),
+                })
+            }),
         }
     }
 }
