@@ -185,6 +185,15 @@ struct MyQuery {
     #[sql_type = "BigInt"] result: i64,
 }
 
+async fn req_hashmap<T: Serialize + DeserializeOwned + Clone + Debug>(in_data: HashMap<String, SingleVal<T>>) -> Json<MyResponse<HashMap<String, SingleVal<T>>>> {
+    println!("in_data -> {:?}", in_data);
+    Json(MyResponse{
+        r: true,
+        d: Some(resp_str),
+        e: None,
+    })
+}
+
 async fn play_with_raw_query(conn: DbConn) -> String {
     let r = sql_query("select count(1) as result;").get_result::<MyQuery>(&conn.0).unwrap().result;
     println!("{}", r);
