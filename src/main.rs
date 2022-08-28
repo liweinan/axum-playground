@@ -1,3 +1,4 @@
+#![feature(associated_type_bounds)]
 #[macro_use]
 extern crate diesel;
 
@@ -148,6 +149,8 @@ async fn main() {
         .route("/", get(root))
         // `POST /users` goes to `create_user`
         .route("/users", post(create_user))
+        .route("/req_hashmap",
+               post(req_hashmap))
         .route("/typed_users", post(create_with_typed_user))
         .route("/get_host", get(get_host))
         .route("/my_resp", get(my_resp))
@@ -185,11 +188,11 @@ struct MyQuery {
     #[sql_type = "BigInt"] result: i64,
 }
 
-async fn req_hashmap<T: Serialize + DeserializeOwned + Clone + Debug>(in_data: HashMap<String, SingleVal<T>>) -> Json<MyResponse<HashMap<String, SingleVal<T>>>> {
+async fn req_hashmap<T: Serialize + DeserializeOwned + Clone + Debug>(Json(in_data): Json<HashMap<String, T>>) -> Json<MyResponse<HashMap<String, T>>> {
     println!("in_data -> {:?}", in_data);
-    Json(MyResponse{
+    Json(MyResponse {
         r: true,
-        d: Some(resp_str),
+        d: Some(in_data),
         e: None,
     })
 }
@@ -365,7 +368,7 @@ async fn create_with_typed_user(
     data.insert("foo".to_string(), "1".to_string());
     data.insert("bar".to_string(), "1".to_string());
 
-    let meta : TypedMeta<String> = TypedMeta {
+    let meta: TypedMeta<String> = TypedMeta {
         meta: None,
         data: Some(data),
     };
