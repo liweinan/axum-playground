@@ -1,3 +1,10 @@
+## Introduction
+
+This project shows how to use Axum with Diesel:
+
+- [GitHub - tokio-rs/axum: Ergonomic and modular web framework built with Tokio, Tower, and Hyper](https://github.com/tokio-rs/axum)
+- [GitHub - diesel-rs/diesel: A safe, extensible ORM and Query Builder for Rust](https://github.com/diesel-rs/diesel)
+
 ## Usage
 
 ### Create Database
