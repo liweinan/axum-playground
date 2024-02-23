@@ -9,7 +9,7 @@ use crate::schema::{users};
 use std::{env, fmt};
 use std::fmt::{Debug, Formatter};
 use std::future::Future;
-use std::io::Write;
+use std::io::{stdout, Write};
 use axum::{routing::{get, post}, http::StatusCode, response::IntoResponse, Json, Router, async_trait};
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
@@ -19,7 +19,7 @@ use std::time::Duration;
 use anyhow::anyhow;
 use axum::extract::{FromRef, FromRequestParts, Query, State};
 use axum::http::header::HOST;
-use diesel::{insert_into, PgConnection, QueryDsl, RunQueryDsl, sql_query, ExpressionMethods};
+use diesel::{insert_into, PgConnection, QueryDsl, RunQueryDsl, sql_query, ExpressionMethods, OptionalExtension};
 use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
 use diesel::sql_types::Jsonb;
 use dotenv::dotenv;
@@ -32,9 +32,12 @@ use diesel::serialize::IsNull;
 use tokio::time::sleep;
 use tokio::task;
 use diesel::sql_types::BigInt;
-use log::{debug, error};
+use tracing::{debug, error, Level};
 use serde::de::DeserializeOwned;
+use time::macros::format_description;
+use time::UtcOffset;
 use tokio::net::TcpListener;
+use tracing_subscriber::fmt::time::OffsetTime;
 
 
 pub type PgPool = Pool<PgConnMgr>;
@@ -724,6 +727,8 @@ pub struct SqlUser {
 }
 
 pub async fn find_all_sql_users(conn: DbConn) -> Json<MyResponse<Vec<SqlUser>>> {
+    debug!("find_all_sql_users -> START");
+
     let sql_users = raw_find_all_sql_users(&mut extract_conn(conn)).unwrap();
     let resp = MyResponse {
         r: true,
@@ -734,10 +739,17 @@ pub async fn find_all_sql_users(conn: DbConn) -> Json<MyResponse<Vec<SqlUser>>> 
 }
 
 fn raw_find_all_sql_users(conn: &mut PgConnection) -> anyhow::Result<Vec<SqlUser>> {
-    let q = format!("SELECT UPPER(username) as upper_name, meta, LEN(username) as len_username FROM users");
-    let res = sql_query(q.clone()).load(conn)?;
+    let q = format!("SELECT UPPER(username) as upper_username, meta, LENGTH(username) as len_username FROM users");
+    debug!("raw_find_all_sql_users -> q: {:?}", q);
+
+    let res = sql_query(q.clone()).load(conn).optional()?;
     debug!("raw_find_all_sql_users -> res: {:?}", res);
-    Ok(res)
+
+    if res.is_some() {
+        Ok(res.unwrap())
+    } else {
+        Ok(vec![])
+    }
 }
 
 #[tokio::main]
@@ -752,6 +764,25 @@ async fn main() {
     };
 
     let shared_db_state = Arc::new(db_state);
+
+    let logger_level = Level::DEBUG;
+
+    let local_time = OffsetTime::new(
+        UtcOffset::from_hms(8, 0, 0).unwrap(),
+        format_description!("[year]-[month]-[day] [hour]:[minute]:[second].[subsecond digits:3]"),
+    );
+
+    let _ = tracing_subscriber::fmt()
+        .with_timer(local_time)
+        .with_ansi(false)
+        .with_max_level(logger_level)
+        .with_file(true) // display source file name
+        .with_thread_names(true)
+        .with_line_number(true)
+        .with_target(false)
+        // .with_writer(file_appender)
+        .with_writer(stdout)
+        .init();
 
     // build our application with a route
     let app = Router::new()
