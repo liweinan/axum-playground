@@ -713,6 +713,16 @@ fn paginate_users<T: Debug + DeserializeOwned + Serialize + Clone + 'static>(par
     Ok((_users, _total_pages, _total))
 }
 
+#[derive(QueryableByName, Default, Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct SqlUser {
+    #[diesel(sql_type = diesel::sql_types::Varchar)]
+    upper_username: String,
+    #[diesel(sql_type = diesel::sql_types::Nullable<diesel::sql_types::Jsonb>)]
+    meta: Option<Meta>,
+    #[diesel(sql_type = diesel::sql_types::Int4)]
+    len_username: i32,
+}
+
 #[tokio::main]
 async fn main() {
     dotenv().ok();
