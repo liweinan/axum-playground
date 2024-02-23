@@ -717,10 +717,27 @@ fn paginate_users<T: Debug + DeserializeOwned + Serialize + Clone + 'static>(par
 pub struct SqlUser {
     #[diesel(sql_type = diesel::sql_types::Varchar)]
     upper_username: String,
-    #[diesel(sql_type = diesel::sql_types::Nullable<diesel::sql_types::Jsonb>)]
+    #[diesel(sql_type = diesel::sql_types::Nullable < diesel::sql_types::Jsonb >)]
     meta: Option<Meta>,
     #[diesel(sql_type = diesel::sql_types::Int4)]
     len_username: i32,
+}
+
+pub async fn find_all_sql_users(conn: DbConn) -> Json<MyResponse<Vec<SqlUser>>> {
+    let sql_users = raw_find_all_sql_users(&mut extract_conn(conn)).unwrap();
+    let resp = MyResponse {
+        r: true,
+        d: Some(sql_users),
+        e: None,
+    };
+    Json(resp)
+}
+
+fn raw_find_all_sql_users(conn: &mut PgConnection) -> anyhow::Result<Vec<SqlUser>> {
+    let q = format!("SELECT UPPER(username) as upper_name, meta, LEN(username) as len_username FROM users");
+    let res = sql_query(q.clone()).load(conn)?;
+    debug!("raw_find_all_sql_users -> res: {:?}", res);
+    Ok(res)
 }
 
 #[tokio::main]
@@ -759,6 +776,7 @@ async fn main() {
         .route("/play_with_raw_query", get(play_with_raw_query))
         .route("/current_time", get(get_current_time))
         .route("/req_conn", get(req_conn))
+        .route("/find_all_sql_users", get(find_all_sql_users))
         .with_state(shared_db_state);
     // .layer(Extension(shared_db_state));
 
