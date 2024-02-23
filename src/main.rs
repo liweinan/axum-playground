@@ -36,6 +36,7 @@ use tokio::task;
 use diesel::sql_types::BigInt;
 use log::{debug, error};
 use serde::de::DeserializeOwned;
+use tokio::net::TcpListener;
 
 
 pub type PgPool = Pool<PgConnMgr>;
@@ -186,11 +187,11 @@ async fn main() {
     // `axum::Server` is a re-export of `hyper::Server`
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
     // tracing::debug!("listening on {}", addr);
+
+    let listener = TcpListener::bind(&addr).await.unwrap();
     debug!("listening on {}", addr);
-    axum::Server::bind(&addr)
-        .serve(app.into_make_service())
-        .await
-        .unwrap();
+
+    let _ = axum::serve(listener, app.into_make_service()).await.unwrap();
 }
 
 // https://github.com/tokio-rs/axum/discussions/930
