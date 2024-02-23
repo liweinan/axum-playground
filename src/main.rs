@@ -17,7 +17,6 @@ use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use std::time::Duration;
 use anyhow::anyhow;
-// use axum::body::Body;
 use axum::extract::{FromRef, FromRequestParts, Query, State};
 use axum::http::header::HOST;
 use diesel::{insert_into, PgConnection, QueryDsl, RunQueryDsl, sql_query, ExpressionMethods};
@@ -27,7 +26,6 @@ use dotenv::dotenv;
 use uuid::Uuid;
 use axum::extract::{Path};
 use axum::http::request::Parts;
-// use axum::http::Request;
 use chrono::{Local, NaiveDateTime};
 use diesel::pg::{Pg, PgValue};
 use diesel::serialize::IsNull;
@@ -143,56 +141,6 @@ impl Deref for DbConn {
     }
 }
 
-#[tokio::main]
-async fn main() {
-    dotenv().ok();
-    // todo: replace with this logger later
-    // initialize tracing
-    // tracing_subscriber::fmt::init();
-
-    let db_state = DbState {
-        pool: pool(&env::var("DATABASE_URL").unwrap()),
-    };
-
-    let shared_db_state = Arc::new(db_state);
-
-    // build our application with a route
-    let app = Router::new()
-        // `GET /` goes to `root`
-        .route("/", get(root))
-        .route("/req_async", get(req_async))
-        // `POST /users` goes to `create_user`
-        .route("/users", post(create_user))
-        .route("/typed_users", post(create_with_typed_user))
-        .route("/find_user_by_id/:id", get(find_user_by_id))
-        .route("/delete_user_by_id/:id", get(delete_user_by_id))
-        .route("/get_host", get(get_host))
-        .route("/my_resp", get(my_resp))
-        .route("/path/:id", get(path))
-        .route("/path2/:path_id", get(path2))
-        .route("/post_with_path/:id", post(post_with_path))
-        .route("/raw_string_post", post(raw_string_post))
-        .route("/mix/:id", post(mix))
-        .route("/users", get(get_users_by_page))
-        .route("/query", get(query))
-        .route("/nested_async", get(nested_async))
-        .route("/play_with_raw_query", get(play_with_raw_query))
-        .route("/current_time", get(get_current_time))
-        .route("/req_conn", get(req_conn))
-        .with_state(shared_db_state);
-    // .layer(Extension(shared_db_state));
-
-
-    // run our app with hyper
-    // `axum::Server` is a re-export of `hyper::Server`
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    // tracing::debug!("listening on {}", addr);
-
-    let listener = TcpListener::bind(&addr).await.unwrap();
-    debug!("listening on {}", addr);
-
-    let _ = axum::serve(listener, app.into_make_service()).await.unwrap();
-}
 
 // https://github.com/tokio-rs/axum/discussions/930
 // https://docs.rs/axum/latest/axum/extract/index.html#applying-multiple-extractors
@@ -729,38 +677,6 @@ macro_rules! impl_typed_jsonb_boilerplate {
 
 impl_typed_jsonb_boilerplate!(TypedMeta);
 
-//
-// // 因为泛型的原因，这里不能用这个macro了
-
-// impl<T: Debug + Serialize + DeserializeOwned + Clone> diesel::deserialize::FromSql<diesel::sql_types::Jsonb, diesel::pg::Pg>
-// for TypedMeta<T>
-// {
-//     fn from_sql(bytes: PgValue) -> diesel::deserialize::Result<Self> {
-//         let value = <serde_json::Value as diesel::deserialize::FromSql<
-//             diesel::sql_types::Jsonb,
-//             diesel::pg::Pg,
-//         >>::from_sql(bytes)?;
-//         Ok(serde_json::from_value(value)?)
-//     }
-// }
-//
-// // https://docs.diesel.rs/diesel/serialize/trait.ToSql.html
-// impl<T> diesel::serialize::ToSql<diesel::sql_types::Jsonb, Pg> for TypedMeta<T>
-//     where
-//         T: Debug + Serialize + DeserializeOwned + Clone,
-// {
-//     fn to_sql<'b>(
-//         &'b self,
-//         out: &mut diesel::serialize::Output<'b, '_, Pg>,
-//     ) -> diesel::serialize::Result {
-//         out.write_all(&[1])?;
-//         serde_json::to_writer(out, &serde_json::to_value(self)?)
-//             .map(|_| IsNull::No)
-//             .map_err(Into::into)
-//     }
-// }
-
-
 fn all_users(conn: &mut PgConnection) -> Vec<User> {
     use crate::schema::users::dsl::*;
     users.load::<User>(conn).unwrap()
@@ -773,10 +689,6 @@ pub struct PageParams {
     pub start_from: Option<NaiveDateTime>,
 }
 
-
-// .paginate(page);
-// .per_page(per_page);
-// .load_and_count_pages::<T>(conn)?;
 fn paginate_users<T: Debug + DeserializeOwned + Serialize + Clone + 'static>(params: &PageParams, conn: &mut PgConnection) -> anyhow::Result<(Vec<TypedUser<T>>, i64, i64)> {
     use crate::pagination::*;
     use diesel::prelude::*;
@@ -801,3 +713,53 @@ fn paginate_users<T: Debug + DeserializeOwned + Serialize + Clone + 'static>(par
     Ok((_users, _total_pages, _total))
 }
 
+#[tokio::main]
+async fn main() {
+    dotenv().ok();
+    // todo: replace with this logger later
+    // initialize tracing
+    // tracing_subscriber::fmt::init();
+
+    let db_state = DbState {
+        pool: pool(&env::var("DATABASE_URL").unwrap()),
+    };
+
+    let shared_db_state = Arc::new(db_state);
+
+    // build our application with a route
+    let app = Router::new()
+        // `GET /` goes to `root`
+        .route("/", get(root))
+        .route("/req_async", get(req_async))
+        // `POST /users` goes to `create_user`
+        .route("/users", post(create_user))
+        .route("/typed_users", post(create_with_typed_user))
+        .route("/find_user_by_id/:id", get(find_user_by_id))
+        .route("/delete_user_by_id/:id", get(delete_user_by_id))
+        .route("/get_host", get(get_host))
+        .route("/my_resp", get(my_resp))
+        .route("/path/:id", get(path))
+        .route("/path2/:path_id", get(path2))
+        .route("/post_with_path/:id", post(post_with_path))
+        .route("/raw_string_post", post(raw_string_post))
+        .route("/mix/:id", post(mix))
+        .route("/users", get(get_users_by_page))
+        .route("/query", get(query))
+        .route("/nested_async", get(nested_async))
+        .route("/play_with_raw_query", get(play_with_raw_query))
+        .route("/current_time", get(get_current_time))
+        .route("/req_conn", get(req_conn))
+        .with_state(shared_db_state);
+    // .layer(Extension(shared_db_state));
+
+
+    // run our app with hyper
+    // `axum::Server` is a re-export of `hyper::Server`
+    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    // tracing::debug!("listening on {}", addr);
+
+    let listener = TcpListener::bind(&addr).await.unwrap();
+    debug!("listening on {}", addr);
+
+    let _ = axum::serve(listener, app.into_make_service()).await.unwrap();
+}
