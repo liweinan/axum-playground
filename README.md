@@ -89,3 +89,87 @@ Result:
 {"r":true,"d":[[{"id":"66fd9d99-1b3f-4be4-b805-161775caafe0","username":"liweinan"}],2],"e":null}
 ```
 
+## SQL Query
+
+command:
+
+```bash
+➤ curl http://localhost:3000/find_all_sql_users
+```
+
+result:
+
+```json
+{
+    "r": true,
+    "d": [
+        {
+            "upper_username": "LIWEINAN42",
+            "meta": {
+                "meta": null,
+                "data": {
+                    "foo": "1",
+                    "bar": "1"
+                }
+            },
+            "len_username": 10
+        },
+        {
+            "upper_username": "LIWEINAN43",
+            "meta": {
+                "meta": null,
+                "data": {
+                    "foo": "1",
+                    "bar": "1"
+                }
+            },
+            "len_username": 10
+        },
+        {
+            "upper_username": "LIWEINAN44",
+            "meta": {
+                "meta": null,
+                "data": {
+                    "foo": "1",
+                    "bar": "1"
+                }
+            },
+            "len_username": 10
+        },
+        {
+            "upper_username": "LIWEINAN45",
+            "meta": {
+                "meta": null,
+                "data": {
+                    "foo": "1",
+                    "bar": "1"
+                }
+            },
+            "len_username": 10
+        },
+        {
+            "upper_username": "LIWEINAN66",
+            "meta": {
+                "meta": null,
+                "data": {
+                    "bar": "1",
+                    "foo": "1"
+                }
+            },
+            "len_username": 10
+        },
+        {
+            "upper_username": "LIWEINAN67",
+            "meta": {
+                "meta": null,
+                "data": {
+                    "bar": "1",
+                    "foo": "1"
+                }
+            },
+            "len_username": 10
+        }
+    ],
+    "e": null
+}
+```
