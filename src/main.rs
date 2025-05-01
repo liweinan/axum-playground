@@ -717,7 +717,7 @@ fn paginate_users<T: Debug + DeserializeOwned + Serialize + Clone + 'static>(par
 }
 
 #[derive(QueryableByName, Default, Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct SqlUser {
+pub struct UserDTO {
     #[diesel(sql_type = diesel::sql_types::Varchar)]
     upper_username: String,
     #[diesel(sql_type = diesel::sql_types::Nullable < diesel::sql_types::Jsonb >)]
@@ -726,7 +726,7 @@ pub struct SqlUser {
     len_username: i32,
 }
 
-pub async fn find_all_sql_users(conn: DbConn) -> Json<MyResponse<Vec<SqlUser>>> {
+pub async fn find_all_sql_users(conn: DbConn) -> Json<MyResponse<Vec<UserDTO>>> {
     debug!("find_all_sql_users -> START");
 
     let sql_users = raw_find_all_sql_users(&mut extract_conn(conn)).unwrap();
@@ -738,7 +738,7 @@ pub async fn find_all_sql_users(conn: DbConn) -> Json<MyResponse<Vec<SqlUser>>> 
     Json(resp)
 }
 
-fn raw_find_all_sql_users(conn: &mut PgConnection) -> anyhow::Result<Vec<SqlUser>> {
+fn raw_find_all_sql_users(conn: &mut PgConnection) -> anyhow::Result<Vec<UserDTO>> {
     let q = format!("SELECT UPPER(username) as upper_username, meta, LENGTH(username) as len_username FROM users");
     debug!("raw_find_all_sql_users -> q: {:?}", q);
 
