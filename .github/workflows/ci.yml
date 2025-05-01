@@ -8,7 +8,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  DATABASE_URL: postgres://foo_user:foo_password@localhost:5432/foo_db
+  DATABASE_URL: postgres://foo_user:foo_password@postgres:5432/foo_db
 
 jobs:
   build:
@@ -84,6 +84,8 @@ jobs:
         diesel print-schema
 
     - name: Run tests
+      env:
+        DATABASE_URL: postgres://foo_user:foo_password@localhost:5432/foo_db
       run: |
         chmod +x ./test.sh
         ./test.sh 
