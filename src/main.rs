@@ -530,13 +530,13 @@ pub struct TypedUser<T: Debug + DeserializeOwned + Serialize + Clone> {
 }
 
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct ReqWxMessageData4KeywordTemplate {
     pub first: ReqWxMessageDataValue,
     pub remark: ReqWxMessageDataValue,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct ReqWxMessageDataValue {
     pub value: String,
 }
@@ -721,7 +721,7 @@ pub struct SqlUser {
     #[diesel(sql_type = diesel::sql_types::Varchar)]
     upper_username: String,
     #[diesel(sql_type = diesel::sql_types::Nullable < diesel::sql_types::Jsonb >)]
-    meta: Option<Meta>,
+    meta: Option<TypedMeta<ReqWxMessageData4KeywordTemplate>>,
     #[diesel(sql_type = diesel::sql_types::Int4)]
     len_username: i32,
 }

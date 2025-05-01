@@ -1,0 +1,4 @@
+.cursorindexingignore
+.idea/
+.specstory/
+target/

@@ -5,171 +5,115 @@ This project shows how to use Axum with Diesel:
 - [GitHub - tokio-rs/axum: Ergonomic and modular web framework built with Tokio, Tower, and Hyper](https://github.com/tokio-rs/axum)
 - [GitHub - diesel-rs/diesel: A safe, extensible ORM and Query Builder for Rust](https://github.com/diesel-rs/diesel)
 
+## Features
+
+- PostgreSQL database integration with Diesel ORM
+- User management with CRUD operations
+- Pagination support
+- SQL query execution
+- Integration tests
+- Docker support for development
+
 ## Usage
 
-### Create Database
+### Prerequisites
 
+- Docker and Docker Compose
+- Rust toolchain
+- PostgreSQL client (optional, for direct database access)
+
+### Setup
+
+1. Create a `.env` file with the following variables:
 ```bash
-postgres=# create user foo_user;
-CREATE ROLE
-postgres=# create database foo_db;
-CREATE DATABASE
-postgres=# alter database foo_db owner to foo_user;
-ALTER DATABASE
-postgres=# alter role foo_user with login;
-ALTER ROLE
+DATABASE_URL=postgres://foo_user:foo_password@localhost:5432/foo_db
+POOL_SIZE=5
 ```
 
-### Run Migration
-
+2. Start the database:
 ```bash
-➤ diesel migration run                                                                                                                                                                                                                                                       11:00:30
-Running migration 2022-02-05-134136_add_users_table
+docker-compose up -d
 ```
 
-### Run Service
-
+3. Run migrations:
 ```bash
-$ cargo run
-...
-Finished dev [unoptimized + debuginfo] target(s) in 3.06s
-Running `target/debug/axum-playground`
+diesel migration run
 ```
 
-### Test Request
+### Running the Application
 
+```bash
+cargo run
+```
 
-#### Create user
+### Running Tests
 
+```bash
+./test.sh
+```
 
-Command: 
+The test script will:
+1. Start the database container
+2. Run migrations
+3. Start the application
+4. Execute integration tests
+5. Clean up resources
 
+### API Endpoints
+
+#### Create User
 ```bash
 curl --location --request POST 'http://localhost:3000/users' \
 --header 'Content-Type: application/json' \
 --data-raw '{
-    "username":"liweinan1"
+    "username": "test_user"
 }'
 ```
 
-Create Typed User:
-
+#### Get Users with Pagination
 ```bash
-curl --location --request POST 'http://localhost:3000/typed_users' \
---header 'Content-Type: application/json' \
---data-raw '{
-    "username":"liweinan42"
-}'
+curl 'http://localhost:3000/users?page=1&page_size=10'
 ```
 
-Result:
-
-```json
-{"id":"66fd9d99-1b3f-4be4-b805-161775caafe0","username":"liweinan"}
-```
-
-### Delete User
-
+#### Find User by ID
 ```bash
-curl http://localhost:3000/delete_user_by_id/b61896bc-a449-402e-ba9c-273f0eea052d                                                                                                                                                                                                                                            01:55:44
-{"id":"b61896bc-a449-402e-ba9c-273f0eea052d","username":"liweinan999","created_at":"2022-08-17T01:55:44.700301","meta":{"meta":null,"data":{"foo":"1","bar":"1"}}}
+curl 'http://localhost:3000/find_user_by_id/{id}'
 ```
 
-#### Get user
-
-Run:
-
+#### Get All SQL Users
 ```bash
-$ curl 'http://localhost:3000/users?page=1&page_size=1'
+curl 'http://localhost:3000/find_all_sql_users'
 ```
 
-Result:
+### Database Schema
 
-```json
-{"r":true,"d":[[{"id":"66fd9d99-1b3f-4be4-b805-161775caafe0","username":"liweinan"}],2],"e":null}
+The project uses a PostgreSQL database with the following schema:
+
+```sql
+CREATE TABLE users (
+    id VARCHAR PRIMARY KEY,
+    username VARCHAR UNIQUE NOT NULL,
+    created_at TIMESTAMP,
+    meta JSONB
+);
 ```
 
-## SQL Query
+### Testing
 
-command:
+The project includes integration tests that verify:
+- User creation with unique usernames
+- User listing with pagination
+- SQL query functionality
+- Error handling and response formats
 
-```bash
-➤ curl http://localhost:3000/find_all_sql_users
-```
+Tests are located in `tests/integration_test.rs` and can be run using the `test.sh` script.
 
-result:
+### Development
 
-```json
-{
-    "r": true,
-    "d": [
-        {
-            "upper_username": "LIWEINAN42",
-            "meta": {
-                "meta": null,
-                "data": {
-                    "foo": "1",
-                    "bar": "1"
-                }
-            },
-            "len_username": 10
-        },
-        {
-            "upper_username": "LIWEINAN43",
-            "meta": {
-                "meta": null,
-                "data": {
-                    "foo": "1",
-                    "bar": "1"
-                }
-            },
-            "len_username": 10
-        },
-        {
-            "upper_username": "LIWEINAN44",
-            "meta": {
-                "meta": null,
-                "data": {
-                    "foo": "1",
-                    "bar": "1"
-                }
-            },
-            "len_username": 10
-        },
-        {
-            "upper_username": "LIWEINAN45",
-            "meta": {
-                "meta": null,
-                "data": {
-                    "foo": "1",
-                    "bar": "1"
-                }
-            },
-            "len_username": 10
-        },
-        {
-            "upper_username": "LIWEINAN66",
-            "meta": {
-                "meta": null,
-                "data": {
-                    "bar": "1",
-                    "foo": "1"
-                }
-            },
-            "len_username": 10
-        },
-        {
-            "upper_username": "LIWEINAN67",
-            "meta": {
-                "meta": null,
-                "data": {
-                    "bar": "1",
-                    "foo": "1"
-                }
-            },
-            "len_username": 10
-        }
-    ],
-    "e": null
-}
-```
+The project uses:
+- Axum for the web framework
+- Diesel for database operations
+- Tokio for async runtime
+- Tracing for logging
+- UUID for unique identifiers
+- Serde for serialization/deserialization
