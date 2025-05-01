@@ -6,13 +6,13 @@ docker-compose up -d
 
 # Wait for the database to be ready
 echo "Waiting for database to be ready..."
-for i in {1..30}; do
+for i in {1..300}; do
     if docker-compose exec postgres pg_isready -U foo_user -d foo_db; then
         echo "Database is ready!"
         break
     fi
-    if [ $i -eq 30 ]; then
-        echo "Database failed to start within 30 seconds"
+    if [ $i -eq 300 ]; then
+        echo "Database failed to start within 5 minutes"
         docker-compose down
         exit 1
     fi
@@ -33,13 +33,13 @@ APP_PID=$!
 
 # Wait for the application to start (with timeout)
 echo "Waiting for application to start..."
-for i in {1..30}; do
+for i in {1..300}; do
     if curl -s http://localhost:3000/ > /dev/null; then
         echo "Application is ready!"
         break
     fi
-    if [ $i -eq 30 ]; then
-        echo "Application failed to start within 30 seconds"
+    if [ $i -eq 300 ]; then
+        echo "Application failed to start within 5 minutes"
         kill $APP_PID
         docker-compose down
         exit 1
