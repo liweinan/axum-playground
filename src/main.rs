@@ -790,15 +790,15 @@ async fn main() {
         // `POST /users` goes to `create_user`
         .route("/users", post(create_user))
         .route("/typed_users", post(create_with_typed_user))
-        .route("/find_user_by_id/:id", get(find_user_by_id))
-        .route("/delete_user_by_id/:id", get(delete_user_by_id))
+        .route("/find_user_by_id/{id}", get(find_user_by_id))
+        .route("/delete_user_by_id/{id}", get(delete_user_by_id))
         .route("/get_host", get(get_host))
         .route("/my_resp", get(my_resp))
-        .route("/path/:id", get(path))
-        .route("/path2/:path_id", get(path2))
-        .route("/post_with_path/:id", post(post_with_path))
+        .route("/path/{id}", get(path))
+        .route("/path2/{path_id}", get(path2))
+        .route("/post_with_path/{id}", post(post_with_path))
         .route("/raw_string_post", post(raw_string_post))
-        .route("/mix/:id", post(mix))
+        .route("/mix/{id}", post(mix))
         .route("/users", get(get_users_by_page))
         .route("/query", get(query))
         .route("/nested_async", get(nested_async))
@@ -806,7 +806,8 @@ async fn main() {
         .route("/current_time", get(get_current_time))
         .route("/req_conn", get(req_conn))
         .route("/find_all_sql_users", get(find_all_sql_users))
-        .with_state(shared_db_state);
+        .with_state(shared_db_state)
+        .without_v07_checks();
     // .layer(Extension(shared_db_state));
 
 
