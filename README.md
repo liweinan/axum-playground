@@ -13,6 +13,7 @@ This project shows how to use Axum with Diesel:
 - SQL query execution
 - Integration tests
 - Docker support for development
+- GitHub Actions CI/CD pipeline
 
 ## Usage
 
@@ -21,6 +22,7 @@ This project shows how to use Axum with Diesel:
 - Docker and Docker Compose
 - Rust toolchain
 - PostgreSQL client (optional, for direct database access)
+- diesel_cli (for database migrations)
 
 ### Setup
 
@@ -30,12 +32,17 @@ DATABASE_URL=postgres://foo_user:foo_password@localhost:5432/foo_db
 POOL_SIZE=5
 ```
 
-2. Start the database:
+2. Install diesel_cli:
+```bash
+cargo install diesel_cli --no-default-features --features postgres
+```
+
+3. Start the database:
 ```bash
 docker-compose up -d
 ```
 
-3. Run migrations:
+4. Run migrations:
 ```bash
 diesel migration run
 ```
@@ -53,7 +60,7 @@ cargo run
 ```
 
 The test script will:
-1. Start the database container
+1. Start the PostgreSQL 15 database container
 2. Run migrations
 3. Start the application
 4. Execute integration tests
@@ -87,7 +94,7 @@ curl 'http://localhost:3000/find_all_sql_users'
 
 ### Database Schema
 
-The project uses a PostgreSQL database with the following schema:
+The project uses PostgreSQL 15 with the following schema:
 
 ```sql
 CREATE TABLE users (
@@ -111,9 +118,16 @@ Tests are located in `tests/integration_test.rs` and can be run using the `test.
 ### Development
 
 The project uses:
-- Axum for the web framework
-- Diesel for database operations
-- Tokio for async runtime
-- Tracing for logging
-- UUID for unique identifiers
-- Serde for serialization/deserialization
+- Axum 0.8.4 for the web framework
+- Diesel 2.2.10 for database operations
+- PostgreSQL 15 for the database
+- Docker and Docker Compose for containerization
+
+### CI/CD
+
+The project includes a GitHub Actions workflow that:
+1. Sets up the Rust toolchain
+2. Installs diesel_cli
+3. Installs Docker and Docker Compose
+4. Runs the test script
+5. Verifies database migrations and table creation
