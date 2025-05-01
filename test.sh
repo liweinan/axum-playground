@@ -22,9 +22,21 @@ done
 # Set the database URL with password
 export DATABASE_URL="postgres://foo_user:foo_password@localhost:5432/foo_db"
 
-# Run migrations
+# Run migrations and wait for completion
 echo "Running migrations..."
-diesel migration run
+if ! diesel migration run; then
+    echo "Migrations failed to run"
+    docker-compose down
+    exit 1
+fi
+
+# Verify tables exist
+echo "Verifying database tables..."
+if ! diesel print-schema | grep -q "table \"users\""; then
+    echo "Users table not found after migrations"
+    docker-compose down
+    exit 1
+fi
 
 # Run the application in the background
 echo "Starting the application..."
