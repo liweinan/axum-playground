@@ -10,7 +10,7 @@ use std::{env, fmt};
 use std::fmt::{Debug, Formatter};
 use std::future::Future;
 use std::io::{stdout, Write};
-use axum::{routing::{get, post}, http::StatusCode, response::IntoResponse, Json, Router, async_trait};
+use axum::{routing::{get, post}, http::StatusCode, response::IntoResponse, Json, Router};
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::ops::{Deref, DerefMut};
@@ -104,7 +104,6 @@ impl Deref for HostHeader {
     }
 }
 
-#[async_trait]
 impl<B> FromRequestParts<B> for HostHeader where
     B: Send + Sync, {
     type Rejection = (StatusCode, String);
@@ -118,7 +117,6 @@ impl<B> FromRequestParts<B> for HostHeader where
 
 type MyDbState = Arc<DbState>;
 
-#[async_trait]
 impl<B> FromRequestParts<B> for DbConn
     where
         MyDbState: FromRef<B>,
