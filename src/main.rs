@@ -753,9 +753,6 @@ fn raw_find_all_sql_users(conn: &mut PgConnection) -> anyhow::Result<Vec<UserDTO
 #[tokio::main]
 async fn main() {
     dotenv().ok();
-    // todo: replace with this logger later
-    // initialize tracing
-    // tracing_subscriber::fmt::init();
 
     let db_state = DbState {
         pool: pool(&env::var("DATABASE_URL").unwrap()),
@@ -770,7 +767,8 @@ async fn main() {
         format_description!("[year]-[month]-[day] [hour]:[minute]:[second].[subsecond digits:3]"),
     );
 
-    let _ = tracing_subscriber::fmt()
+    // Initialize the logger
+    tracing_subscriber::fmt()
         .with_timer(local_time)
         .with_ansi(false)
         .with_max_level(logger_level)
@@ -778,7 +776,6 @@ async fn main() {
         .with_thread_names(true)
         .with_line_number(true)
         .with_target(false)
-        // .with_writer(file_appender)
         .with_writer(stdout)
         .init();
 
@@ -808,14 +805,10 @@ async fn main() {
         .route("/find_all_sql_users", get(find_all_sql_users))
         .with_state(shared_db_state)
         .without_v07_checks();
-    // .layer(Extension(shared_db_state));
-
 
     // run our app with hyper
     // `axum::Server` is a re-export of `hyper::Server`
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    // tracing::debug!("listening on {}", addr);
-
     let listener = TcpListener::bind(&addr).await.unwrap();
     debug!("listening on {}", addr);
 
