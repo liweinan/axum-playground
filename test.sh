@@ -32,7 +32,7 @@ fi
 
 # Verify tables exist
 echo "Verifying database tables..."
-if ! diesel print-schema | grep -q "table \"users\""; then
+if ! docker-compose exec postgres psql -U foo_user -d foo_db -c "\dt" | grep -q "users"; then
     echo "Users table not found after migrations"
     docker-compose down
     exit 1
@@ -52,7 +52,6 @@ for i in {1..300}; do
     fi
     if [ $i -eq 300 ]; then
         echo "Application failed to start within 5 minutes"
-        kill $APP_PID
         docker-compose down
         exit 1
     fi
@@ -61,9 +60,9 @@ done
 
 # Run tests
 echo "Running tests..."
-cargo test --test integration_test
+cargo test
 
-# Cleanup
+# Clean up
 echo "Cleaning up..."
 kill $APP_PID
 docker-compose down 
