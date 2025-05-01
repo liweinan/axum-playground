@@ -8,6 +8,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  DATABASE_URL: postgres://foo_user:foo_password@localhost:5432/foo_db
 
 jobs:
   build:
@@ -68,9 +69,21 @@ jobs:
         sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.5/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
         sudo chmod +x /usr/local/bin/docker-compose
 
+    - name: Debug database connection
+      run: |
+        echo "Testing database connection..."
+        psql $DATABASE_URL -c "SELECT 1" || true
+        echo "Current database tables:"
+        psql $DATABASE_URL -c "\dt" || true
+
+    - name: Run migrations
+      run: |
+        echo "Running migrations..."
+        diesel migration run
+        echo "Current schema:"
+        diesel print-schema
+
     - name: Run tests
-      env:
-        DATABASE_URL: postgres://foo_user:foo_password@localhost:5432/foo_db
       run: |
         chmod +x ./test.sh
         ./test.sh 
