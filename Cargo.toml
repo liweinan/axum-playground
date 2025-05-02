@@ -18,7 +18,7 @@ diesel = { version = "2.2.10", features = ["postgres", "r2d2", "chrono", "uuid",
 dotenv = "0.15"
 uuid = { version = "1.0", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
-thiserror = "1.0"
+thiserror = "2.0"
 tracing = "0.1"
 tracing-appender = "^0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "time"] }
